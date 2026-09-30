@@ -17,10 +17,13 @@
 //   question.asked     → opencode has a question (also via the question tool)
 // Desktop omarchy notification + sound still fire alongside; set
 // OPENCODE_IPHONE_DESKTOP=0 to make it iPhone-only.
+//
+// Debug: OPENCODE_IPHONE_DEBUG=1 traces events/hooks/pushes to
+// /tmp/opencode-iphone-debug.log (restart opencode after enabling).
 
 import type { Plugin } from "@opencode-ai/plugin"
 import { spawn } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { appendFileSync, existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const OMARCHY = "/usr/share/omarchy/bin/omarchy"
@@ -28,6 +31,18 @@ const PLAY = "/usr/bin/canberra-gtk-play"
 const SOUND = "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
 const GLYPH = "\u{F17B}"
 const DESKTOP = process.env.OPENCODE_IPHONE_DESKTOP !== "0"
+
+// Debug: OPENCODE_IPHONE_DEBUG=1 appends every event/tool/push trace to
+// /tmp/opencode-iphone-debug.log. Off by default (streaming deltas are noisy).
+const DEBUG = process.env.OPENCODE_IPHONE_DEBUG === "1"
+const DEBUG_LOG = "/tmp/opencode-iphone-debug.log"
+
+function dbg(...parts: unknown[]) {
+  if (!DEBUG) return
+  try {
+    appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${parts.map(String).join(" ")}\n`)
+  } catch {}
+}
 
 function topic(): string {
   if (process.env.NTFY_TOPIC) return process.env.NTFY_TOPIC.trim()
@@ -56,11 +71,14 @@ function pushIphone(headline: string, kind: "done" | "perm" | "question") {
   const priority = kind === "done" ? "3" : "5"
   const tags = kind === "done" ? "white_check_mark" : kind === "perm" ? "warning" : "question"
   // fire-and-forget, never block opencode
+  dbg("push", kind, "to", t)
   fetch(`https://ntfy.sh/${t}`, {
     method: "POST",
     body: headline,
     headers: { Title: title, Priority: priority, Tags: tags },
-  }).catch(() => {})
+  })
+    .then((r) => dbg("push", kind, "http", r.status))
+    .catch((e) => dbg("push", kind, "ERR", String(e)))
 }
 
 function desktop(replaceId: string, headline: string) {
@@ -95,10 +113,12 @@ function ping(replaceId: string, headline: string) {
 }
 
 export default (async () => {
+  dbg("init")
   return {
     event: async (input) => {
       const event: any = input.event
       const type = event?.type as string
+      dbg("event", type)
       if (type === "session.status") {
         if (event.properties.status.type === "busy") {
           busy.add(event.properties.sessionID)
@@ -120,10 +140,13 @@ export default (async () => {
       }
     },
     "permission.ask": async () => {
+      dbg("hook permission.ask")
       ping("oc-perm", pick(["your call", "approve?", "up to you", "you decide"]))
     },
     "tool.execute.before": async (input) => {
-      if (input.tool === "question") {
+      const name = String(input?.tool ?? "")
+      dbg("hook tool.before", name)
+      if (name.toLowerCase().includes("question")) {
         ping("oc-question", pick(["question for you", "need your take", "you're needed"]))
       }
     },

@@ -82,6 +82,16 @@ Your iPhone should show **opencode: test** within seconds.
 Desktop Omarchy toasts + sound still fire alongside. Set
 `OPENCODE_IPHONE_DESKTOP=0` in your shell profile for iPhone-only.
 
+## Debugging
+
+```bash
+export OPENCODE_IPHONE_DEBUG=1
+# restart opencode, reproduce, then:
+cat /tmp/opencode-iphone-debug.log
+```
+
+Traces every bus event, hook call and push result (HTTP status or error).
+
 Done-pings are throttled to one per 4 s; subagent chatter is collapsed via
 the `session.status` busy-set so you only get pinged when *everything* is idle.
 
