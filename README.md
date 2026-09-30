@@ -77,7 +77,43 @@ Your iPhone should show **opencode: test** within seconds.
 | --- | --- | --- |
 | `session.idle` (task done) | opencode: task done | default |
 | `permission.asked` / `permission.ask` | opencode: approval needed | max |
+| privilege prompt (`sudo`, `pkexec`, …) | opencode: sudo approval needed 🚨 | max |
 | `question.asked` / `question` tool | opencode: question for you | max |
+
+## Privilege gate (sudo / pkexec)
+
+Pair this plugin with ask-rules so privilege escalation always prompts
+(and therefore always pushes). In `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "sudo": "ask",
+      "sudo *": "ask",
+      "sudoedit": "ask",
+      "sudoedit *": "ask",
+      "pkexec": "ask",
+      "pkexec *": "ask",
+      "doas": "ask",
+      "doas *": "ask",
+      "su": "ask",
+      "su *": "ask",
+      "run0": "ask",
+      "run0 *": "ask"
+    }
+  }
+}
+```
+
+Put `"*": "allow"` first — opencode evaluates the **last** matching rule,
+so narrow rules go last. Restart opencode after editing.
+
+Security note: the plugin only forces the approval dialog and labels the
+push. It never sees, asks for, or handles passwords — root authentication
+stays entirely between you and your terminal (sudo) or system dialog
+(polkit).
 
 Desktop Omarchy toasts + sound still fire alongside. Set
 `OPENCODE_IPHONE_DESKTOP=0` in your shell profile for iPhone-only.

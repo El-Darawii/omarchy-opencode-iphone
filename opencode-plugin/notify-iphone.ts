@@ -15,6 +15,8 @@
 //   session.idle       → task finished
 //   permission.asked   → approval needed (also via the permission.ask hook)
 //   question.asked     → opencode has a question (also via the question tool)
+// Privilege commands (sudo/pkexec/doas/su/run0/sudoedit, gated to `ask` in
+// opencode.json) push as `opencode: sudo approval needed`.
 // Desktop omarchy notification + sound still fire alongside; set
 // OPENCODE_IPHONE_DESKTOP=0 to make it iPhone-only.
 //
@@ -44,6 +46,25 @@ function dbg(...parts: unknown[]) {
   } catch {}
 }
 
+// Privilege escalation binaries. Matched as whole words against the
+// permission request (tool/patterns/command), so `sudo` hits but
+// e.g. `sudoedit-backup` style substrings don't over-match.
+// The plugin never handles passwords — it only forces an approval
+// dialog (opencode.json permission rules) and labels the push.
+const PRIV_RE = /\b(?:sudo|sudoedit|pkexec|doas|run0)\b|\bsu\b/i
+
+function isPrivileged(...texts: unknown[]): boolean {
+  try {
+    const hay = texts
+      .flatMap((t) => (Array.isArray(t) ? t : [t]))
+      .filter((t) => typeof t === "string" && t.length > 0)
+      .join("\n")
+    return PRIV_RE.test(hay)
+  } catch {
+    return false
+  }
+}
+
 function topic(): string {
   if (process.env.NTFY_TOPIC) return process.env.NTFY_TOPIC.trim()
   const home = process.env.HOME ?? ""
@@ -59,17 +80,26 @@ function topic(): string {
   return ""
 }
 
-function pushIphone(headline: string, kind: "done" | "perm" | "question") {
+function pushIphone(headline: string, kind: "done" | "perm" | "sudoperm" | "question") {
   const t = topic()
   if (!t) return
   const title =
-    kind === "perm"
-      ? "opencode: approval needed"
-      : kind === "question"
-        ? "opencode: question for you"
-        : "opencode: task done"
+    kind === "sudoperm"
+      ? "opencode: sudo approval needed"
+      : kind === "perm"
+        ? "opencode: approval needed"
+        : kind === "question"
+          ? "opencode: question for you"
+          : "opencode: task done"
   const priority = kind === "done" ? "3" : "5"
-  const tags = kind === "done" ? "white_check_mark" : kind === "perm" ? "warning" : "question"
+  const tags =
+    kind === "sudoperm"
+      ? "rotating_light"
+      : kind === "done"
+        ? "white_check_mark"
+        : kind === "perm"
+          ? "warning"
+          : "question"
   // fire-and-forget, never block opencode
   dbg("push", kind, "to", t)
   fetch(`https://ntfy.sh/${t}`, {
@@ -103,13 +133,20 @@ function pick(list: string[]): string {
   return list[spin++ % list.length]
 }
 
-function ping(replaceId: string, headline: string) {
+function ping(replaceId: string, headline: string, priv = false) {
   const now = Date.now()
   if (now - lastPing < 4000) return
   lastPing = now
   desktop(replaceId, headline)
-  const kind = replaceId === "oc-perm" ? "perm" : replaceId === "oc-question" ? "question" : "done"
-  pushIphone(headline, kind as "done" | "perm" | "question")
+  const kind =
+    replaceId === "oc-perm" && priv
+      ? "sudoperm"
+      : replaceId === "oc-perm"
+        ? "perm"
+        : replaceId === "oc-question"
+          ? "question"
+          : "done"
+  pushIphone(headline, kind as "done" | "perm" | "sudoperm" | "question")
 }
 
 export default (async () => {
@@ -128,7 +165,10 @@ export default (async () => {
         return
       }
       if (type === "permission.asked") {
-        ping("oc-perm", pick(["your call", "approve?", "up to you", "you decide"]))
+        const p: any = event.properties ?? {}
+        const priv = isPrivileged(p.permission, p.patterns, p.command, p.title)
+        dbg("perm.asked priv=", priv)
+        ping("oc-perm", pick(["your call", "approve?", "up to you", "you decide"]), priv)
         return
       }
       if (type === "question.asked") {
@@ -139,9 +179,16 @@ export default (async () => {
         ping("oc-done", pick(["your move", "you're up", "all yours", "take it away"]))
       }
     },
-    "permission.ask": async () => {
-      dbg("hook permission.ask")
-      ping("oc-perm", pick(["your call", "approve?", "up to you", "you decide"]))
+    "permission.ask": async (input: any, output: any) => {
+      const priv = isPrivileged(
+        input?.permission,
+        input?.patterns,
+        input?.command,
+        output?.args?.command,
+        output?.args?.patterns
+      )
+      dbg("hook permission.ask priv=", priv)
+      ping("oc-perm", pick(["your call", "approve?", "up to you", "you decide"]), priv)
     },
     "tool.execute.before": async (input) => {
       const name = String(input?.tool ?? "")
