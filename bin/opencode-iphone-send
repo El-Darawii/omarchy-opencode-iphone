@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# opencode-iphone-send — push a notification to your iPhone via ntfy.sh.
-# Free, no account. Part of the darawi.opencode-iphone omarchy plugin.
+# opencode-iphone-send — push a notification to your iPhone via ntfy.
+# Free, no account. Part of the io.github.eldarawii.opencode-iphone omarchy plugin.
 #
 # Topic resolution: $NTFY_TOPIC > $OPENCODE_IPHONE_TOPIC_FILE >
 # ~/.config/opencode-iphone/topic
+# Server resolution: $NTFY_BASE > https://ntfy.sh (for a self-hosted ntfy)
 #
 # Usage:
 #   opencode-iphone-send --test
@@ -13,6 +14,8 @@ set -u
 
 TOPIC_FILE="${OPENCODE_IPHONE_TOPIC_FILE:-$HOME/.config/opencode-iphone/topic}"
 TOPIC="${NTFY_TOPIC:-}"
+NTFY_BASE="${NTFY_BASE:-https://ntfy.sh}"
+NTFY_BASE="${NTFY_BASE%/}"
 
 if [ -z "$TOPIC" ] && [ -f "$TOPIC_FILE" ]; then
   TOPIC="$(tr -d '[:space:]' < "$TOPIC_FILE")"
@@ -34,7 +37,7 @@ case "${1:-}" in
     exec curl -sS --max-time 15 \
       -H "Title: opencode: test" -H "Priority: 3" -H "Tags: white_check_mark" \
       -d "iPhone push works — topic: $TOPIC" \
-      "https://ntfy.sh/$TOPIC"
+      "$NTFY_BASE/$TOPIC"
     ;;
   ""|--help|-h) usage ;;
 esac
@@ -52,4 +55,4 @@ esac
 exec curl -sS --max-time 15 \
   -H "Title: $TITLE" -H "Priority: $PRIORITY" -H "Tags: $TAGS" \
   -d "$BODY" \
-  "https://ntfy.sh/$TOPIC"
+  "$NTFY_BASE/$TOPIC"

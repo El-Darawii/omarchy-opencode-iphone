@@ -1,4 +1,4 @@
-// darawi.opencode-iphone — free iPhone push for opencode via ntfy.sh.
+// io.github.eldarawii.opencode-iphone — free iPhone push for opencode via ntfy.
 //
 // Companion to opencode-plugin/notify-iphone.ts (the opencode side, which
 // does the actual per-event pushing). This service owns one thing: the
@@ -11,6 +11,7 @@
 //
 // No account, no API keys. Install the "ntfy" app from the App Store on your
 // iPhone and subscribe to the topic printed by the `topic` call above.
+// Set $NTFY_BASE to push through a self-hosted ntfy server instead of ntfy.sh.
 
 import QtQuick
 import Quickshell
@@ -27,7 +28,14 @@ Scope {
   readonly property string home: Quickshell.env("HOME")
   readonly property string configDir: home + "/.config/opencode-iphone/"
   readonly property string topicPath: configDir + "topic"
-  readonly property string ntfyBase: "https://ntfy.sh/"
+
+  // Public ntfy.sh by default. Point $NTFY_BASE at a self-hosted ntfy server
+  // (e.g. https://ntfy.example.com) to keep message bodies off a shared relay.
+  readonly property string ntfyBase: {
+    var b = String(Quickshell.env("NTFY_BASE") || "").trim()
+    if (b === "") return "https://ntfy.sh/"
+    return b.replace(/\/+$/, "") + "/"
+  }
 
   property string topicName: ""
 

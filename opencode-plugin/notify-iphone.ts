@@ -8,8 +8,9 @@
 // or:  cat ~/.config/opencode-iphone/topic
 //
 // Topic resolution: $NTFY_TOPIC > ~/.config/opencode-iphone/topic.
-// (The darawi.opencode-iphone omarchy plugin owns that file and generates
-// a random default on first load, so both sides always agree.)
+// Server: $NTFY_BASE > https://ntfy.sh (set NTFY_BASE for a self-hosted ntfy).
+// (The io.github.eldarawii.opencode-iphone omarchy plugin owns the topic file
+// and generates a random default on first load, so both sides always agree.)
 //
 // Pushes on:
 //   session.idle       → task finished
@@ -80,6 +81,14 @@ function topic(): string {
   return ""
 }
 
+// Public ntfy.sh by default. Set NTFY_BASE to a self-hosted ntfy server
+// (e.g. https://ntfy.example.com) to keep bodies off a shared relay.
+function baseUrl(): string {
+  const b = String(process.env.NTFY_BASE || "").trim()
+  if (!b) return "https://ntfy.sh"
+  return b.replace(/\/+$/, "")
+}
+
 function pushIphone(headline: string, kind: "done" | "perm" | "sudoperm" | "question") {
   const t = topic()
   if (!t) return
@@ -102,7 +111,7 @@ function pushIphone(headline: string, kind: "done" | "perm" | "sudoperm" | "ques
           : "question"
   // fire-and-forget, never block opencode
   dbg("push", kind, "to", t)
-  fetch(`https://ntfy.sh/${t}`, {
+  fetch(`${baseUrl()}/${t}`, {
     method: "POST",
     body: headline,
     headers: { Title: title, Priority: priority, Tags: tags },
