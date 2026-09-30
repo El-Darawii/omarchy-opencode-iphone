@@ -1,11 +1,11 @@
 # Opencode iPhone Notify
 
-Free iPhone push notifications for [opencode](https://opencode.ai) on Omarchy:
+Free phone push notifications for [opencode](https://opencode.ai) on Omarchy:
 get pinged when a task finishes, when opencode needs approval, or when it
 asks you a question — even when you're away from your desk.
 
 No account, no API keys. Push goes through [ntfy](https://ntfy.sh), which
-relays to Apple's push network via the ntfy iOS app.
+relays to push network via the ntfy app.
 
 ![Task done, question and sudo-approval pushes arriving on an iPhone](preview.png)
 
@@ -62,11 +62,10 @@ omarchy plugin validate . # manifest contract, same checks the shell enforces
 ### 1. iPhone (once, 1 minute)
 
 1. Install **ntfy** from the App Store.
-2. Tap **+ Subscribe to topic**, enter your topic name
+2. Tap , enter your topic name
    (find it with the `--topic` command in step 4).
-3. Allow notifications. For approvals that punch through Focus/mute, set the
-   ntfy subscription to **Time Sensitive** — permission/question pushes send
-   at max priority.
+3. Allow notifications.
+4. Thats it , enjoy your life afk.
 
 > Anyone who guesses your topic can read/send to it. The generated default
 > (`opencode-iphone-<16 hex chars>`) is unguessable — treat it like a password.
