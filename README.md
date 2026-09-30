@@ -42,7 +42,7 @@ Topic resolution everywhere: `$NTFY_TOPIC` → `~/.config/opencode-iphone/topic`
 ### 2. Omarchy plugin
 
 ```bash
-omarchy plugin add https://github.com/<you>/omarchy-opencode-iphone.git --enable
+omarchy plugin add https://github.com/El-Darawii/omarchy-opencode-iphone.git --enable
 ```
 
 By hand:
