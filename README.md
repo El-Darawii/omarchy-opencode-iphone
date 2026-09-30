@@ -7,6 +7,8 @@ asks you a question — even when you're away from your desk.
 No account, no API keys. Push goes through [ntfy](https://ntfy.sh), which
 relays to Apple's push network via the ntfy iOS app.
 
+![Task done, question and sudo-approval pushes arriving on an iPhone](preview.png)
+
 ## How it works
 
 ```
@@ -22,6 +24,7 @@ topic file, plus a **drop-in opencode plugin** that does the pushing.
 | `manifest.json` / `Service.qml` | Omarchy service: owns `~/.config/opencode-iphone/topic`, exposes `omarchy-shell opencodeIphone …` IPC |
 | `bin/opencode-iphone-send` | CLI sender + tester (reads the same topic file) |
 | `opencode-plugin/notify-iphone.ts` | Drop-in opencode plugin: `session.idle`, `permission.asked`, `question.asked` |
+| `preview.png` | Marketplace listing preview |
 
 Resolution everywhere:
 
@@ -29,6 +32,30 @@ Resolution everywhere:
 | --- | --- | --- |
 | Push server | `https://ntfy.sh` | `NTFY_BASE` (self-hosted ntfy) |
 | Topic | `~/.config/opencode-iphone/topic` | `NTFY_TOPIC` |
+
+## The Omarchy/QML side
+
+`Service.qml` is a Quattro **QML** plugin — a `service` entry point, which the
+shell defines as a headless singleton with no UI. It runs *inside* the shared,
+long-lived `omarchy-shell` process; it never starts a second Quickshell
+instance. Being QML, it uses the shell's own primitives:
+
+- `Scope` as the root, since the service renders nothing
+- `Quickshell.Io.Process` + `StdioCollector` to read the topic file once
+- `Quickshell.execDetached` for fire-and-forget `curl` pushes (argv-based, no
+  shell, so spaces and unicode in titles/bodies are safe)
+- `IpcHandler` on the `opencodeIphone` target for the CLI/IPC surface
+- host injection for `shell`, `manifest`, and `omarchyPath`
+
+`keepLoaded: true` keeps the service mounted across plugin hot-reload, so the
+IPC handler survives other plugins reloading. The trade-off is that the kept
+instance is not replaced: **`Service.qml` edits need `omarchy restart shell`**,
+not just a save.
+
+```bash
+omarchy plugin validate . # manifest contract, same checks the shell enforces
+/usr/lib/qt6/bin/qmllint -I "$OMARCHY_PATH/shell" Service.qml
+```
 
 ## Install
 
