@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# opencode-iphone-send — push a notification to your iPhone via ntfy.sh.
+# Free, no account. Part of the darawi.opencode-iphone omarchy plugin.
+#
+# Topic resolution: $NTFY_TOPIC > $OPENCODE_IPHONE_TOPIC_FILE >
+# ~/.config/opencode-iphone/topic
+#
+# Usage:
+#   opencode-iphone-send --test
+#   opencode-iphone-send "<title>" "<body>" [done|perm|question]
+#   opencode-iphone-send --topic   # print current topic
+set -u
+
+TOPIC_FILE="${OPENCODE_IPHONE_TOPIC_FILE:-$HOME/.config/opencode-iphone/topic}"
+TOPIC="${NTFY_TOPIC:-}"
+
+if [ -z "$TOPIC" ] && [ -f "$TOPIC_FILE" ]; then
+  TOPIC="$(tr -d '[:space:]' < "$TOPIC_FILE")"
+fi
+
+usage() {
+  echo "usage: $(basename "$0") --test | --topic | \"<title>\" \"<body>\" [done|perm|question]" >&2
+  exit 2
+}
+
+case "${1:-}" in
+  --topic)
+    [ -n "$TOPIC" ] || { echo "no topic configured (expected $TOPIC_FILE or \$NTFY_TOPIC)" >&2; exit 1; }
+    printf '%s\n' "$TOPIC"
+    exit 0
+    ;;
+  --test)
+    [ -n "$TOPIC" ] || { echo "no topic configured (expected $TOPIC_FILE or \$NTFY_TOPIC)" >&2; exit 1; }
+    exec curl -sS --max-time 15 \
+      -H "Title: opencode: test" -H "Priority: 3" -H "Tags: white_check_mark" \
+      -d "iPhone push works — topic: $TOPIC" \
+      "https://ntfy.sh/$TOPIC"
+    ;;
+  ""|--help|-h) usage ;;
+esac
+
+[ -n "$TOPIC" ] || { echo "no topic configured (expected $TOPIC_FILE or \$NTFY_TOPIC)" >&2; exit 1; }
+TITLE="${1:?title required}"; BODY="${2:?body required}"; KIND="${3:-done}"
+
+case "$KIND" in
+  done)     PRIORITY=3; TAGS="white_check_mark" ;;
+  perm)     PRIORITY=5; TAGS="warning" ;;
+  question) PRIORITY=5; TAGS="question" ;;
+  *) echo "kind must be done|perm|question" >&2; exit 2 ;;
+esac
+
+exec curl -sS --max-time 15 \
+  -H "Title: $TITLE" -H "Priority: $PRIORITY" -H "Tags: $TAGS" \
+  -d "$BODY" \
+  "https://ntfy.sh/$TOPIC"

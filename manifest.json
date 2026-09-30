@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "darawi.opencode-iphone",
+  "name": "Opencode iPhone Notify",
+  "version": "1.0.0",
+  "author": "darawi",
+  "license": "MIT",
+  "description": "Forward opencode task-done, approval and question pings to your iPhone via free ntfy.sh push. Ships a drop-in opencode plugin.",
+  "kinds": ["service"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}
