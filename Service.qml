@@ -45,6 +45,21 @@ Scope {
 
   // Fire-and-forget curl. Argv-based, no shell, so spaces/unicode in
   // titles and bodies are safe.
+  //
+  // Two curl behaviours make the raw argv unsafe, and both are reachable
+  // from the opencodeIphone IPC surface:
+  //   -d @path        reads that local file and uploads its contents
+  //   CR/LF in -H     splits into extra request headers (forged Title,
+  //                   Priority, Attach, Actions, ...)
+  // So the body goes out with --data-raw (no @ interpretation, same
+  // newline handling as -d) and the title is flattened to one line.
+  function headerText(value, fallback) {
+    var s = String(value === undefined || value === null ? "" : value)
+      .replace(/[\r\n\0]/g, " ")
+      .trim()
+    return s === "" ? fallback : s
+  }
+
   function push(title, body, kind) {
     if (topicName === "") return
     var k = String(kind || "done")
@@ -52,10 +67,11 @@ Scope {
     var tags = k === "done" ? "white_check_mark" : (k === "perm" ? "warning" : "question")
     Quickshell.execDetached([
       "curl", "-sS", "--max-time", "15",
-      "-H", "Title: " + String(title || "opencode"),
+      "-H", "Title: " + headerText(title, "opencode"),
       "-H", "Priority: " + priority,
       "-H", "Tags: " + tags,
-      "-d", String(body || ""),
+      "--data-raw", String(body === undefined || body === null ? "" : body),
+      "--",
       topicUrl()
     ])
   }

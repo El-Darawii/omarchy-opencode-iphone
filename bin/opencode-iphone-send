@@ -21,6 +21,15 @@ if [ -z "$TOPIC" ] && [ -f "$TOPIC_FILE" ]; then
   TOPIC="$(tr -d '[:space:]' < "$TOPIC_FILE")"
 fi
 
+# curl reads `-d @path` as a file reference and uploads that file's contents,
+# and splits CR/LF inside a `-H` value into extra request headers. Both matter
+# here because title and body are caller-supplied. Send the body with
+# --data-raw (no @ interpretation, identical newline handling) and flatten the
+# title to a single line.
+safe_header() {
+  printf '%s' "${1//[$'\r\n']/ }"
+}
+
 usage() {
   echo "usage: $(basename "$0") --test | --topic | \"<title>\" \"<body>\" [done|perm|question]" >&2
   exit 2
@@ -36,7 +45,7 @@ case "${1:-}" in
     [ -n "$TOPIC" ] || { echo "no topic configured (expected $TOPIC_FILE or \$NTFY_TOPIC)" >&2; exit 1; }
     exec curl -sS --max-time 15 \
       -H "Title: opencode: test" -H "Priority: 3" -H "Tags: white_check_mark" \
-      -d "iPhone push works — topic: $TOPIC" \
+      --data-raw "iPhone push works — topic: $TOPIC" \
       "$NTFY_BASE/$TOPIC"
     ;;
   ""|--help|-h) usage ;;
@@ -53,6 +62,6 @@ case "$KIND" in
 esac
 
 exec curl -sS --max-time 15 \
-  -H "Title: $TITLE" -H "Priority: $PRIORITY" -H "Tags: $TAGS" \
-  -d "$BODY" \
+  -H "Title: $(safe_header "$TITLE")" -H "Priority: $PRIORITY" -H "Tags: $TAGS" \
+  --data-raw "$BODY" \
   "$NTFY_BASE/$TOPIC"
